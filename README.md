@@ -1,7 +1,5 @@
 # Secure Multi-Tenant AI Agent (.NET 10 + Microsoft Agent Framework)
 
-![tests](https://github.com/WALEED-NET/secure-multitenant-ai-agent/actions/workflows/ci.yml/badge.svg)
-
 A small, complete reference for adding an AI agent to an existing multi-tenant ASP.NET Core SaaS **without trusting the model**.
 The agent answers from the caller's own documents, cites its sources, and can only *propose* changes for a human to approve.
 Tenant isolation, authorization and provenance are enforced in C#, so they hold even when the model is confused or manipulated.
@@ -46,11 +44,27 @@ Tenant isolation, authorization and provenance are enforced in C#, so they hold 
 
 The tests run the real API in memory (real auth, real EF Core filters, real Agent Framework function calling).
 Only the model is replaced by a scripted `IChatClient`, so each test can play a helpful, confused or **malicious** model on purpose.
-They are deterministic, free, and run in CI on every push.
+They are deterministic and free: no API key or Azure subscription is needed.
 
 ```bash
 dotnet test
 ```
+
+```text
+Passed!  - Failed: 0, Passed: 10, Skipped: 0, Total: 10
+```
+
+| Test | What the scripted model tries |
+|------|-------------------------------|
+| `Answers_with_a_valid_citation_from_the_callers_tenant` | Normal question, correct citation: accepted |
+| `Another_tenants_document_cannot_be_read_even_when_the_model_asks_for_it` | Reads another tenant's document by id: "not found" |
+| `An_answer_citing_a_document_that_was_never_retrieved_is_rejected` | Cites another tenant's secret anyway: HTTP 422 |
+| `An_answer_with_a_fabricated_quote_is_rejected` | Invents a quote: HTTP 422 |
+| `Prompt_injection_in_a_document_cannot_cross_tenants_or_change_data` | Fully obeys an injected document: nothing leaks, nothing changes, all audited |
+| `Restricted_documents_are_only_visible_to_reviewers` (x2) | Member vs reviewer searching restricted content |
+| `Only_a_reviewer_of_the_same_tenant_can_approve_an_action` | Member and other-tenant reviewer try to approve |
+| `Anonymous_requests_are_rejected` | No token: HTTP 401 |
+| `Writes_into_another_tenant_are_blocked_at_the_data_layer` | Saves a document into another tenant: exception |
 
 ## Run locally
 
